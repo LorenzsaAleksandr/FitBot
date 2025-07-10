@@ -11,7 +11,11 @@
   <video id="video" autoplay></video>
   <canvas id="canvas" hidden></canvas>
   <div id="result">Ожидание сканирования...</div>
+
+   <!-- Подключение библиотеки для сканера -->
   <script src="https://unpkg.com/@zxing/browser@latest"></script>
+
+  <!-- Скрипт -->
   <script src="script.js"></script>
 </body>
 </html>
@@ -46,6 +50,11 @@ video {
 const video = document.getElementById('video');
 const resultBox = document.getElementById('result');
 
+// ✅ Telegram WebApp инициализация
+if (window.Telegram && Telegram.WebApp) {
+  Telegram.WebApp.ready();
+}
+
 const codeReader = new ZXing.BrowserMultiFormatReader();
 
 codeReader.decodeFromVideoDevice(null, video, async (result, err) => {
@@ -57,24 +66,31 @@ codeReader.decodeFromVideoDevice(null, video, async (result, err) => {
     if (foodData) {
       const { name, calories, proteins, fats, carbs } = foodData;
       resultBox.innerHTML = `
-        <b>${name}</b><br>
+        ✅ <b>${name}</b><br>
         Калории: ${calories}<br>
         Белки: ${proteins} г<br>
         Жиры: ${fats} г<br>
         Углеводы: ${carbs} г
       `;
 
-      // отправка в Telegram (если Web App открыт из бота)
+      // ✅ Отправка данных в Telegram бота
       if (window.Telegram && Telegram.WebApp) {
-        Telegram.WebApp.sendData(JSON.stringify(foodData));
+        Telegram.WebApp.sendData(JSON.stringify({
+          barcode,
+          name,
+          calories,
+          proteins,
+          fats,
+          carbs
+        }));
       }
     } else {
-      resultBox.textContent = 'Не удалось найти информацию о продукте';
+      resultBox.textContent = '❌ Не удалось найти информацию о продукте';
     }
   }
 });
 
-// Запрос к API по штрих-коду
+// 🔍 Получение данных о еде из OpenFoodFacts
 async function fetchFoodInfo(barcode) {
   try {
     const res = await fetch(`https://world.openfoodfacts.org/api/v0/product/${barcode}.json`);
@@ -93,3 +109,4 @@ async function fetchFoodInfo(barcode) {
     return null;
   }
 }
+
