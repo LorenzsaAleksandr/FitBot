@@ -76,7 +76,6 @@
 
     const codeReader = new ZXing.BrowserMultiFormatReader();
     let currentStream = null;
-    let scanned = false;
 
     async function requestCamera() {
       try {
@@ -104,9 +103,7 @@
         currentStream = null;
       }
       codeReader.reset();
-      if (!scanned) {
-        resultBox.textContent = "⛔ Сканер остановлен";
-      }
+      resultBox.textContent = "⛔ Сканер остановлен";
     }
 
     async function startScanner() {
@@ -119,20 +116,25 @@
         resultBox.textContent = "🔎 Сканирование запущено...";
 
         await codeReader.decodeFromVideoDevice(backCam.deviceId, video, (result, err) => {
-          if (result && result.getText()) {
+          if (result) {
             const barcode = result.getText();
             console.log("✅ Barcode detected:", barcode);
             resultBox.textContent = "✅ Штрихкод: " + barcode;
-            scanned = true;
 
+            // Остановить камеру и код-ридер
             codeReader.reset();
             stopCamera();
 
+            // Отправить в Telegram
             if (window.Telegram && Telegram.WebApp) {
               Telegram.WebApp.sendData(barcode);
-              Telegram.WebApp.close();  // Попробовать закрыть Web App
+              Telegram.WebApp.close();  // Попытаться закрыть WebApp
             }
-          } else if (err && !(err instanceof ZXing.NotFoundException)) {
+          } else if (err) {
+            if (err instanceof ZXing.NotFoundException) {
+              // Просто не найден - ничего не делаем
+              return;
+            }
             console.error("❌ Ошибка при сканировании:", err);
             resultBox.textContent = "❌ Ошибка при сканировании: " + err.message;
           }
