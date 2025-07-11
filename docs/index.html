@@ -1,112 +1,16 @@
 <!DOCTYPE html>
 <html lang="ru">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Сканер еды</title>
-  <link rel="stylesheet" href="style.css">
+  <link rel="stylesheet" href="style.css" />
 </head>
 <body>
   <h1>Сканируй штрих-код еды 🍏</h1>
   <video id="video" autoplay></video>
-  <canvas id="canvas" hidden></canvas>
   <div id="result">Ожидание сканирования...</div>
-
-   <!-- Подключение библиотеки для сканера -->
   <script src="https://unpkg.com/@zxing/browser@latest"></script>
-
-  <!-- Скрипт -->
   <script src="script.js"></script>
 </body>
 </html>
-
-// === style.css ===
-
-body {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  font-family: sans-serif;
-  padding: 20px;
-  background-color: #f2f2f2;
-}
-
-video {
-  width: 100%;
-  max-width: 400px;
-  border: 2px solid #333;
-  margin-top: 20px;
-  border-radius: 12px;
-}
-
-#result {
-  margin-top: 20px;
-  font-size: 18px;
-  color: green;
-}
-
-// === script.js ===
-
-const video = document.getElementById('video');
-const resultBox = document.getElementById('result');
-
-// ✅ Telegram WebApp инициализация
-if (window.Telegram && Telegram.WebApp) {
-  Telegram.WebApp.ready();
-}
-
-const codeReader = new ZXing.BrowserMultiFormatReader();
-
-codeReader.decodeFromVideoDevice(null, video, async (result, err) => {
-  if (result) {
-    const barcode = result.text;
-    resultBox.textContent = `Штрих-код: ${barcode}`;
-
-    const foodData = await fetchFoodInfo(barcode);
-    if (foodData) {
-      const { name, calories, proteins, fats, carbs } = foodData;
-      resultBox.innerHTML = `
-        ✅ <b>${name}</b><br>
-        Калории: ${calories}<br>
-        Белки: ${proteins} г<br>
-        Жиры: ${fats} г<br>
-        Углеводы: ${carbs} г
-      `;
-
-      // ✅ Отправка данных в Telegram бота
-      if (window.Telegram && Telegram.WebApp) {
-        Telegram.WebApp.sendData(JSON.stringify({
-          barcode,
-          name,
-          calories,
-          proteins,
-          fats,
-          carbs
-        }));
-      }
-    } else {
-      resultBox.textContent = '❌ Не удалось найти информацию о продукте';
-    }
-  }
-});
-
-// 🔍 Получение данных о еде из OpenFoodFacts
-async function fetchFoodInfo(barcode) {
-  try {
-    const res = await fetch(`https://world.openfoodfacts.org/api/v0/product/${barcode}.json`);
-    const data = await res.json();
-    if (!data.product) return null;
-
-    const product = data.product;
-    return {
-      name: product.product_name || "Без названия",
-      calories: product.nutriments['energy-kcal'] || 0,
-      proteins: product.nutriments.proteins || 0,
-      fats: product.nutriments.fat || 0,
-      carbs: product.nutriments.carbohydrates || 0,
-    };
-  } catch (e) {
-    return null;
-  }
-}
-
