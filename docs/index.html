@@ -123,6 +123,7 @@
 
             if (window.Telegram && Telegram.WebApp) {
               Telegram.WebApp.sendData(barcode);
+              Telegram.WebApp.close();
             }
           }
         });
