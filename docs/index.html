@@ -2,14 +2,15 @@
 <html lang="ru">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Сканер еды</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Сканер штрихкодов</title>
   <link rel="stylesheet" href="style.css" />
 </head>
 <body>
-  <h1>Сканируй штрих-код еды 🍏</h1>
-  <video id="video" autoplay></video>
-  <div id="result">Ожидание сканирования...</div>
+  <h1>Сканер штрихкодов 📷</h1>
+  <video id="video" playsinline></video>
+  <div id="result">Наведите камеру на штрихкод...</div>
+  <button id="stop">⏹️ Остановить сканирование</button>
   <script src="https://unpkg.com/@zxing/browser@latest"></script>
   <script src="script.js"></script>
 </body>
