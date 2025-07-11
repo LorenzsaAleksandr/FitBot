@@ -66,7 +66,6 @@
   <button id="stop-btn">Остановить сканирование</button>
   <button id="open-btn">Открыть в браузере</button>
 
-  <!-- Подключаем UMD версию ZXing -->
   <script src="https://unpkg.com/@zxing/library@latest"></script>
 
   <script>
@@ -114,21 +113,33 @@
         const devices = await codeReader.listVideoInputDevices();
         const backCam = devices.find(d => d.label.toLowerCase().includes("back")) || devices[0];
 
+        resultBox.textContent = "🔎 Сканирование запущено...";
+
         await codeReader.decodeFromVideoDevice(backCam.deviceId, video, (result, err) => {
           if (result) {
             const barcode = result.getText();
+            console.log("✅ Barcode detected:", barcode);
             resultBox.textContent = "✅ Штрихкод: " + barcode;
+
+            // Остановить камеру и код-ридер
             codeReader.reset();
             stopCamera();
 
+            // Отправить в Telegram
             if (window.Telegram && Telegram.WebApp) {
               Telegram.WebApp.sendData(barcode);
-              Telegram.WebApp.close();
+              Telegram.WebApp.close();  // Попытаться закрыть WebApp
             }
+          } else if (err) {
+            if (err instanceof ZXing.NotFoundException) {
+              // Просто не найден - ничего не делаем
+              return;
+            }
+            console.error("❌ Ошибка при сканировании:", err);
+            resultBox.textContent = "❌ Ошибка при сканировании: " + err.message;
           }
         });
 
-        resultBox.textContent = "🔎 Сканирование запущено...";
       } catch (err) {
         console.error("Ошибка запуска сканера:", err);
         resultBox.textContent = "❌ Ошибка запуска сканера: " + err.message;
