@@ -19,23 +19,16 @@
     h1 {
       font-size: 22px;
       margin-bottom: 10px;
-      color: #ffffff;
-      font-family: Arial, sans-serif;
       text-align: center;
-      padding: 20px;
     }
 
     #video {
-    video {
       width: 100%;
       max-width: 480px;
       aspect-ratio: 4/3;
       background-color: black;
-      max-width: 400px;
       border-radius: 12px;
       object-fit: cover;
-      background: black;
-      margin-top: 10px;
     }
 
     #result {
@@ -47,13 +40,10 @@
 
     button {
       margin-top: 15px;
-      margin-top: 10px;
       padding: 10px 20px;
       font-size: 16px;
       border: none;
       border-radius: 8px;
-      border-radius: 6px;
-      font-size: 16px;
       cursor: pointer;
     }
 
@@ -87,95 +77,49 @@
     const codeReader = new ZXing.BrowserMultiFormatReader();
     let currentStream = null;
     let scanned = false;
-    let activeStream = null;
-    let scanning = true;
 
     async function requestCamera() {
-    async function startCamera() {
       try {
-        const constraints = {
-          video: { facingMode: { ideal: "environment" } },
-        const stream = await navigator.mediaDevices.getUserMedia({
-          video: { facingMode: "environment" },
-          audio: false
-        };
-
-        const stream = await navigator.mediaDevices.getUserMedia(constraints);
-        });
-        video.srcObject = stream;
-        activeStream = stream;
-        await video.play();
-
-        currentStream = stream;
-        return stream;
-      } catch (err) {
-        console.error("Ошибка доступа к камере:", err);
-        resultBox.textContent = "❌ Ошибка доступа к камере: " + err.message;
-        throw err;
-      } catch (e) {
-        resultBox.textContent = `❌ Камера не доступна: ${e.message}`;
-        console.error(e);
-      }
-    }
-
-    function stopCamera() {
-      if (currentStream) {
-        currentStream.getTracks().forEach(track => track.stop());
+@@ -103,7 +104,9 @@
         currentStream = null;
-      if (activeStream) {
-        activeStream.getTracks().forEach(track => track.stop());
-        activeStream = null;
       }
       codeReader.reset();
+      resultBox.textContent = "⛔ Сканер остановлен";
       if (!scanned) {
         resultBox.textContent = "⛔ Сканер остановлен";
       }
-      scanning = false;
-      resultBox.textContent = "⛔ Сканер остановлен";
     }
 
     async function startScanner() {
-      try {
-        await requestCamera();
-
-        const devices = await codeReader.listVideoInputDevices();
-        const backCam = devices.find(d => d.label.toLowerCase().includes("back")) || devices[0];
-    async function startScanning() {
-      await startCamera();
-      resultBox.textContent = "🔎 Сканируем...";
-
+@@ -116,50 +119,45 @@
         resultBox.textContent = "🔎 Сканирование запущено...";
-      const devices = await codeReader.listVideoInputDevices();
-      const deviceId = devices[0]?.deviceId;
 
         await codeReader.decodeFromVideoDevice(backCam.deviceId, video, (result, err) => {
+          if (result) {
           if (result && result.getText()) {
             const barcode = result.getText();
             console.log("✅ Barcode detected:", barcode);
             resultBox.textContent = "✅ Штрихкод: " + barcode;
             scanned = true;
-      codeReader.decodeFromVideoDevice(deviceId, video, (result, err) => {
-        if (!scanning) return;
 
+            // Остановить камеру и код-ридер
             codeReader.reset();
             stopCamera();
-        if (result && result.getText()) {
-          const barcode = result.getText();
-          console.log("✅ Barcode:", barcode);
-          resultBox.textContent = `✅ Штрихкод: ${barcode}`;
-          scanning = false;
-          stopCamera();
 
+            // Отправить в Telegram
             if (window.Telegram && Telegram.WebApp) {
               Telegram.WebApp.sendData(barcode);
+              Telegram.WebApp.close();  // Попытаться закрыть WebApp
+            }
+          } else if (err) {
+            if (err instanceof ZXing.NotFoundException) {
+              // Просто не найден - ничего не делаем
+              return;
               Telegram.WebApp.close();  // Попробовать закрыть Web App
             }
           } else if (err && !(err instanceof ZXing.NotFoundException)) {
             console.error("❌ Ошибка при сканировании:", err);
             resultBox.textContent = "❌ Ошибка при сканировании: " + err.message;
-          if (window.Telegram?.WebApp) {
-            Telegram.WebApp.sendData(barcode);
-            Telegram.WebApp.close();
           }
         });
 
@@ -183,9 +127,6 @@
         console.error("Ошибка запуска сканера:", err);
         resultBox.textContent = "❌ Ошибка запуска сканера: " + err.message;
       }
-        } 
-        // Не показывай "остановлен" на каждом цикле — просто продолжаем ждать
-      });
     }
 
     stopBtn.addEventListener("click", () => {
@@ -198,11 +139,10 @@
 
     window.addEventListener("DOMContentLoaded", () => {
       if (window.Telegram && Telegram.WebApp) {
-      if (window.Telegram?.WebApp) {
         Telegram.WebApp.expand();
       }
       startScanner();
-      startScanning();
     });
   </script>
 </body>
+</html>
