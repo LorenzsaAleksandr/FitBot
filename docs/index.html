@@ -66,15 +66,16 @@
   <button id="stop-btn">Остановить сканирование</button>
   <button id="open-btn">Открыть в браузере</button>
 
-  <script type="module">
-    import { BrowserMultiFormatReader } from "https://unpkg.com/@zxing/browser@0.0.10/esm/index.js";
+  <!-- Подключаем UMD версию ZXing -->
+  <script src="https://unpkg.com/@zxing/library@latest"></script>
 
+  <script>
     const video = document.getElementById("video");
     const resultBox = document.getElementById("result");
     const stopBtn = document.getElementById("stop-btn");
     const openBtn = document.getElementById("open-btn");
 
-    let codeReader = new BrowserMultiFormatReader();
+    const codeReader = new ZXing.BrowserMultiFormatReader();
     let currentStream = null;
 
     async function requestCamera() {
