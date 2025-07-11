@@ -3,64 +3,79 @@ const resultBox = document.getElementById("result");
 const stopBtn = document.getElementById("stop-btn");
 
 const codeReader = new ZXing.BrowserMultiFormatReader();
-let currentDeviceId = null;
+let currentStream = null;
 
-// Просим доступ к камере отдельно
-async function requestCameraPermission() {
+// Запрашиваем доступ к камере и выводим на видеоэлемент
+async function requestCamera() {
   try {
-    const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } });
-    stream.getTracks().forEach(track => track.stop()); // сразу останавливаем, просто чтобы триггерить запрос
-    console.log("Доступ к камере получен");
-  } catch (e) {
-    console.error("Ошибка доступа к камере:", e);
-    resultBox.textContent = "Ошибка доступа к камере: " + e.message;
+    const constraints = {
+      video: {
+        facingMode: { ideal: "environment" } // основная камера
+      },
+      audio: false
+    };
+
+    const stream = await navigator.mediaDevices.getUserMedia(constraints);
+    video.srcObject = stream;
+    await video.play();
+
+    currentStream = stream;
+    return stream;
+  } catch (err) {
+    console.error("Ошибка доступа к камере:", err);
+    resultBox.textContent = "❌ Ошибка доступа к камере: " + err.message;
+    throw err;
   }
 }
 
-// Запуск сканера
-async function initScanner() {
+// Запускаем сканер
+async function startScanner() {
   try {
+    await requestCamera();
+
     const devices = await codeReader.listVideoInputDevices();
-    if (!devices.length) throw new Error("Нет доступных камер");
+    const backCam = devices.find(d => d.label.toLowerCase().includes("back")) || devices[0];
 
-    currentDeviceId = devices[0].deviceId;
-
-    await codeReader.decodeFromVideoDevice(currentDeviceId, video, (result, err) => {
+    await codeReader.decodeFromVideoDevice(backCam.deviceId, video, (result, err) => {
       if (result) {
-        const barcode = result.text;
-        resultBox.textContent = "Штрихкод: " + barcode;
+        const barcode = result.getText();
+        resultBox.textContent = "✅ Штрихкод: " + barcode;
         codeReader.reset();
+        stopCamera();
 
+        // Отправка в Telegram WebApp
         if (window.Telegram && Telegram.WebApp) {
           Telegram.WebApp.sendData(barcode);
         }
       }
-
-      if (err && !(err instanceof ZXing.NotFoundException)) {
-        console.error("Ошибка при сканировании:", err);
-      }
     });
 
-    resultBox.textContent = "Наведи камеру на штрихкод...";
-  } catch (error) {
-    resultBox.textContent = "Ошибка: " + error.message;
+    resultBox.textContent = "🔎 Сканирование запущено...";
+  } catch (err) {
+    console.error("Ошибка запуска сканера:", err);
+    resultBox.textContent = "❌ Ошибка запуска сканера: " + err.message;
   }
 }
 
-// Остановка сканера
-stopBtn.addEventListener("click", () => {
+// Останавливаем камеру
+function stopCamera() {
+  if (currentStream) {
+    currentStream.getTracks().forEach(track => track.stop());
+    currentStream = null;
+  }
   codeReader.reset();
-  const tracks = video.srcObject?.getTracks() || [];
-  tracks.forEach(track => track.stop());
-  resultBox.textContent = "Сканер остановлен";
+  resultBox.textContent = "⛔ Сканер остановлен";
+}
+
+// Кнопка стоп
+stopBtn.addEventListener("click", () => {
+  stopCamera();
 });
 
-// Telegram init и запуск камеры
-window.addEventListener("DOMContentLoaded", async () => {
+// Запуск при загрузке
+window.addEventListener("DOMContentLoaded", () => {
   if (window.Telegram && Telegram.WebApp) {
     Telegram.WebApp.expand();
   }
-
-  await requestCameraPermission();
-  initScanner();
+  startScanner();
 });
