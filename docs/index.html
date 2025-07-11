@@ -54,12 +54,29 @@
     let activeStream = null;
     let scanning = true;
 
-    async function startCamera() {
+    async function getBackCameraId() {
+      const devices = await navigator.mediaDevices.enumerateDevices();
+      const videoDevices = devices.filter(d => d.kind === 'videoinput');
+      
+      if (videoDevices.length === 1) {
+        return videoDevices[0].deviceId;
+      }
+      
+      // Попытаться найти камеру по имени
+      const backCam = videoDevices.find(d =>
+        /back|rear|environment/i.test(d.label)
+      );
+
+      return backCam ? backCam.deviceId : videoDevices[0]?.deviceId;
+    }
+
+    async function startCamera(deviceId = null) {
       try {
-        const stream = await navigator.mediaDevices.getUserMedia({
-          video: { facingMode: "environment" },
-          audio: false
-        });
+        const constraints = deviceId
+          ? { video: { deviceId: { exact: deviceId } }, audio: false }
+          : { video: { facingMode: { ideal: "environment" } }, audio: false };
+
+        const stream = await navigator.mediaDevices.getUserMedia(constraints);
         video.srcObject = stream;
         activeStream = stream;
         await video.play();
@@ -69,7 +86,7 @@
       }
     }
 
-    function stopCamera() {
+    async function stopCamera() {
       if (activeStream) {
         activeStream.getTracks().forEach(track => track.stop());
         activeStream = null;
@@ -80,13 +97,28 @@
     }
 
     async function startScanning() {
+      resultBox.textContent = "⏳ Запрашиваю разрешение на камеру...";
+      
+      // 1. Первый запуск без deviceId (чтобы браузер дал доступ и раскрыл labels)
       await startCamera();
+
+      // 2. Теперь камеры будут с заполненными label
+      await stopCamera();
+
+      // 3. Выбираем back-камеру
+      const backDeviceId = await getBackCameraId();
+
+      if (!backDeviceId) {
+        resultBox.textContent = "❌ Не найдена камера.";
+        return;
+      }
+
+      // 4. Запускаем выбранную камеру
+      await startCamera(backDeviceId);
+
       resultBox.textContent = "🔎 Сканируем...";
 
-      const devices = await codeReader.listVideoInputDevices();
-      const deviceId = devices[0]?.deviceId;
-
-      codeReader.decodeFromVideoDevice(deviceId, video, (result, err) => {
+      codeReader.decodeFromVideoDevice(backDeviceId, video, (result, err) => {
         if (!scanning) return;
 
         if (result && result.getText()) {
@@ -100,8 +132,7 @@
             Telegram.WebApp.sendData(barcode);
             Telegram.WebApp.close();
           }
-        } 
-        // Не показывай "остановлен" на каждом цикле — просто продолжаем ждать
+        }
       });
     }
 
