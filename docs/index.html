@@ -3,15 +3,56 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>Сканер штрихкодов</title>
-  <link rel="stylesheet" href="style.css" />
+  <title>Сканер штрих-кодов</title>
+  <script src="https://unpkg.com/@zxing/browser@latest"></script>
+  <style>
+    body {
+      font-family: sans-serif;
+      margin: 0;
+      padding: 0;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      background-color: #121212;
+      color: white;
+    }
+    #video-container {
+      width: 100%;
+      max-width: 480px;
+      aspect-ratio: 4/3;
+      background-color: black;
+      margin-top: 20px;
+    }
+    #video {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+    }
+    #result {
+      margin-top: 20px;
+      font-size: 1.2em;
+      color: #4caf50;
+    }
+    button {
+      margin-top: 20px;
+      padding: 10px 20px;
+      font-size: 1em;
+      background-color: #f44336;
+      color: white;
+      border: none;
+      border-radius: 8px;
+      cursor: pointer;
+    }
+  </style>
 </head>
 <body>
-  <h1>Сканер штрихкодов 📷</h1>
-  <video id="video" playsinline></video>
-  <div id="result">Наведите камеру на штрихкод...</div>
-  <button id="stop">⏹️ Остановить сканирование</button>
-  <script src="https://unpkg.com/@zxing/browser@latest"></script>
+  <h1>Сканер еды</h1>
+  <div id="video-container">
+    <video id="video" autoplay muted playsinline></video>
+  </div>
+  <div id="result">Ожидание сканирования...</div>
+  <button id="stop-btn">Остановить сканирование</button>
+
   <script src="script.js"></script>
 </body>
 </html>
