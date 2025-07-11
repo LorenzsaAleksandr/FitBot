@@ -80,41 +80,56 @@
 
     async function requestCamera() {
       try {
-@@ -103,7 +104,9 @@
+        const constraints = {
+          video: { facingMode: { ideal: "environment" } },
+          audio: false
+        };
+
+        const stream = await navigator.mediaDevices.getUserMedia(constraints);
+        video.srcObject = stream;
+        await video.play();
+
+        currentStream = stream;
+        return stream;
+      } catch (err) {
+        console.error("Ошибка доступа к камере:", err);
+        resultBox.textContent = "❌ Ошибка доступа к камере: " + err.message;
+        throw err;
+      }
+    }
+
+    function stopCamera() {
+      if (currentStream) {
+        currentStream.getTracks().forEach(track => track.stop());
         currentStream = null;
       }
       codeReader.reset();
-      resultBox.textContent = "⛔ Сканер остановлен";
       if (!scanned) {
         resultBox.textContent = "⛔ Сканер остановлен";
       }
     }
 
     async function startScanner() {
-@@ -116,50 +119,45 @@
+      try {
+        await requestCamera();
+
+        const devices = await codeReader.listVideoInputDevices();
+        const backCam = devices.find(d => d.label.toLowerCase().includes("back")) || devices[0];
+
         resultBox.textContent = "🔎 Сканирование запущено...";
 
         await codeReader.decodeFromVideoDevice(backCam.deviceId, video, (result, err) => {
-          if (result) {
           if (result && result.getText()) {
             const barcode = result.getText();
             console.log("✅ Barcode detected:", barcode);
             resultBox.textContent = "✅ Штрихкод: " + barcode;
             scanned = true;
 
-            // Остановить камеру и код-ридер
             codeReader.reset();
             stopCamera();
 
-            // Отправить в Telegram
             if (window.Telegram && Telegram.WebApp) {
               Telegram.WebApp.sendData(barcode);
-              Telegram.WebApp.close();  // Попытаться закрыть WebApp
-            }
-          } else if (err) {
-            if (err instanceof ZXing.NotFoundException) {
-              // Просто не найден - ничего не делаем
-              return;
               Telegram.WebApp.close();  // Попробовать закрыть Web App
             }
           } else if (err && !(err instanceof ZXing.NotFoundException)) {
