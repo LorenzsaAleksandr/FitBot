@@ -66,6 +66,87 @@
   <button id="stop-btn">Остановить сканирование</button>
   <button id="open-btn">Открыть в браузере</button>
 
-  <script type="module" src="script.js"></script>
+  <script type="module">
+    import { BrowserMultiFormatReader } from "https://unpkg.com/@zxing/browser@0.0.10/esm/index.js";
+
+    const video = document.getElementById("video");
+    const resultBox = document.getElementById("result");
+    const stopBtn = document.getElementById("stop-btn");
+    const openBtn = document.getElementById("open-btn");
+
+    let codeReader = new BrowserMultiFormatReader();
+    let currentStream = null;
+
+    async function requestCamera() {
+      try {
+        const constraints = {
+          video: { facingMode: { ideal: "environment" } },
+          audio: false
+        };
+
+        const stream = await navigator.mediaDevices.getUserMedia(constraints);
+        video.srcObject = stream;
+        await video.play();
+
+        currentStream = stream;
+        return stream;
+      } catch (err) {
+        console.error("Ошибка доступа к камере:", err);
+        resultBox.textContent = "❌ Ошибка доступа к камере: " + err.message;
+        throw err;
+      }
+    }
+
+    function stopCamera() {
+      if (currentStream) {
+        currentStream.getTracks().forEach(track => track.stop());
+        currentStream = null;
+      }
+      codeReader.reset();
+      resultBox.textContent = "⛔ Сканер остановлен";
+    }
+
+    async function startScanner() {
+      try {
+        await requestCamera();
+
+        const devices = await codeReader.listVideoInputDevices();
+        const backCam = devices.find(d => d.label.toLowerCase().includes("back")) || devices[0];
+
+        await codeReader.decodeFromVideoDevice(backCam.deviceId, video, (result, err) => {
+          if (result) {
+            const barcode = result.getText();
+            resultBox.textContent = "✅ Штрихкод: " + barcode;
+            codeReader.reset();
+            stopCamera();
+
+            if (window.Telegram && Telegram.WebApp) {
+              Telegram.WebApp.sendData(barcode);
+            }
+          }
+        });
+
+        resultBox.textContent = "🔎 Сканирование запущено...";
+      } catch (err) {
+        console.error("Ошибка запуска сканера:", err);
+        resultBox.textContent = "❌ Ошибка запуска сканера: " + err.message;
+      }
+    }
+
+    stopBtn.addEventListener("click", () => {
+      stopCamera();
+    });
+
+    openBtn.addEventListener("click", () => {
+      window.open("https://lorenzsaaleksandr.github.io/FitBot/", "_blank");
+    });
+
+    window.addEventListener("DOMContentLoaded", () => {
+      if (window.Telegram && Telegram.WebApp) {
+        Telegram.WebApp.expand();
+      }
+      startScanner();
+    });
+  </script>
 </body>
 </html>
