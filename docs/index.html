@@ -2,7 +2,7 @@
 <html lang="ru">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Сканер еды</title>
   <script src="https://unpkg.com/@zxing/browser@latest"></script>
   <style>
@@ -20,32 +20,43 @@
     h1 {
       font-size: 22px;
       margin-bottom: 10px;
+      text-align: center;
     }
 
-    #video {
+    video {
       width: 100%;
       max-width: 480px;
       aspect-ratio: 4/3;
       background-color: black;
       border-radius: 12px;
       object-fit: cover;
+      margin-top: 10px;
     }
 
     #result {
       margin-top: 20px;
       font-size: 18px;
       color: #4caf50;
+      text-align: center;
     }
 
-    #stop-btn {
+    button {
       margin-top: 15px;
       padding: 10px 20px;
       font-size: 16px;
-      background-color: #f44336;
-      color: white;
       border: none;
       border-radius: 8px;
       cursor: pointer;
+    }
+
+    #stop-btn {
+      background-color: #f44336;
+      color: white;
+    }
+
+    #open-browser-btn {
+      background-color: #2196f3;
+      color: white;
     }
   </style>
 </head>
@@ -53,8 +64,73 @@
   <h1>📷 Наведи камеру на штрихкод</h1>
   <video id="video" autoplay muted playsinline></video>
   <div id="result">Ожидание сканирования...</div>
-  <button id="stop-btn">Остановить сканирование</button>
+  <button id="stop-btn">⏹️ Остановить сканирование</button>
+  <button id="open-browser-btn">🌐 Открыть в браузере</button>
 
-  <script src="script.js"></script>
+  <script>
+    const video = document.getElementById("video");
+    const resultBox = document.getElementById("result");
+    const stopBtn = document.getElementById("stop-btn");
+    const openBrowserBtn = document.getElementById("open-browser-btn");
+
+    const codeReader = new ZXing.BrowserMultiFormatReader();
+    let controls = null;
+
+    async function startScanner() {
+      try {
+        const devices = await codeReader.listVideoInputDevices();
+        const backCam = devices.find(d => d.label.toLowerCase().includes("back")) || devices[0];
+
+        controls = await codeReader.decodeFromVideoDevice(backCam.deviceId, video, (result, err) => {
+          if (result) {
+            const barcode = result.getText();
+            resultBox.textContent = "✅ Штрихкод: " + barcode;
+
+            // Отправить в Telegram WebApp
+            if (window.Telegram && Telegram.WebApp) {
+              Telegram.WebApp.sendData(barcode);
+            }
+
+            stopCamera();
+          } else if (err && !(err instanceof ZXing.NotFoundException)) {
+            console.error(err);
+            resultBox.textContent = "❌ Ошибка сканирования: " + err.message;
+          }
+        });
+
+        resultBox.textContent = "🔎 Сканирование запущено...";
+      } catch (err) {
+        console.error("Ошибка запуска сканера:", err);
+        resultBox.textContent = "❌ Не удалось запустить камеру: " + err.message;
+      }
+    }
+
+    function stopCamera() {
+      if (controls) {
+        controls.stop();
+        controls = null;
+      }
+      codeReader.reset();
+      resultBox.textContent = "⛔ Сканер остановлен";
+    }
+
+    stopBtn.addEventListener("click", stopCamera);
+
+    openBrowserBtn.addEventListener("click", () => {
+      const url = "https://lorenzsaaleksandr.github.io/FitBot/";
+      if (window.Telegram && Telegram.WebApp && Telegram.WebApp.openLink) {
+        Telegram.WebApp.openLink(url, { try_instant_view: false });
+      } else {
+        window.open(url, "_blank");
+      }
+    });
+
+    window.addEventListener("DOMContentLoaded", () => {
+      if (window.Telegram && Telegram.WebApp) {
+        Telegram.WebApp.expand();
+      }
+      startScanner();
+    });
+  </script>
 </body>
 </html>
