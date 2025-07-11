@@ -1,39 +1,54 @@
-const videoElement = document.getElementById('video');
-const resultBox = document.getElementById('result');
-const stopButton = document.getElementById('stop');
+// Получаем нужные элементы
+const video = document.getElementById("video");
+const resultBox = document.getElementById("result");
+const stopBtn = document.getElementById("stop-btn");
 
+// Подключаем сканер от zxing
 const codeReader = new ZXing.BrowserMultiFormatReader();
+let currentDeviceId = null;
 
-let currentStream = null;
+// Функция для запуска сканера
+async function initScanner() {
+  try {
+    // Получаем список доступных камер
+    const devices = await codeReader.listVideoInputDevices();
+    if (!devices.length) throw new Error("Нет доступных камер");
 
-// Start decoding
-codeReader.decodeFromVideoDevice(null, videoElement, (result, err, controls) => {
-  if (result) {
-    // We got a barcode
-    const barcode = result.getText();
-    resultBox.textContent = `✅ Найден штрихкод: ${barcode}`;
+    // Берем первую камеру
+    currentDeviceId = devices[0].deviceId;
 
-    // Send barcode back to Telegram
-    if (window.Telegram && Telegram.WebApp) {
-      Telegram.WebApp.sendData(barcode);
-    }
+    // Запускаем сканирование
+    await codeReader.decodeFromVideoDevice(currentDeviceId, video, (result, err) => {
+      if (result) {
+        const barcode = result.text;
+        resultBox.textContent = "Штрихкод: " + barcode;
 
-    // Stop camera
-    controls.stop();
-    if (currentStream) {
-      currentStream.getTracks().forEach(track => track.stop());
-    }
-  } else if (err && !(err instanceof ZXing.NotFoundException)) {
-    console.error(err);
-    resultBox.textContent = `Ошибка: ${err}`;
+        // Отправляем данные в Telegram WebApp
+        if (window.Telegram && Telegram.WebApp) {
+          Telegram.WebApp.sendData(barcode);
+        }
+
+        // Останавливаем сканер после успешного сканирования
+        codeReader.reset();
+      }
+    });
+
+    resultBox.textContent = "Наведи камеру на штрихкод...";
+  } catch (error) {
+    resultBox.textContent = "Ошибка: " + error.message;
   }
+}
+
+// Остановка сканера по кнопке
+stopBtn.addEventListener("click", () => {
+  codeReader.reset();
+  resultBox.textContent = "Сканер остановлен";
 });
 
-// Stop button
-stopButton.addEventListener('click', () => {
-  codeReader.reset();
-  if (currentStream) {
-    currentStream.getTracks().forEach(track => track.stop());
+// Telegram WebApp API
+window.addEventListener("DOMContentLoaded", () => {
+  if (window.Telegram && Telegram.WebApp) {
+    Telegram.WebApp.expand();
   }
-  resultBox.textContent = "Сканирование остановлено.";
+  initScanner();
 });
